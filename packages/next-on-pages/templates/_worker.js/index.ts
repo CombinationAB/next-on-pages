@@ -19,25 +19,52 @@ export default {
 				{ status: 503 }
 			);
 		}
-		return envAsyncLocalStorage.run(
-			{ ...env, NODE_ENV: __NODE_ENV__ },
-			async () => {
-				const url = new URL(request.url);
-				if (url.pathname.startsWith('/_next/image')) {
-					return handleImageResizingRequest(request, __CONFIG__.images);
-				}
 
-				const adjustedRequest = adjustRequestForVercel(request);
+		const cloudflareGlobalContextAlsSymbol = Symbol.for(
+			'cloudflare-global-context-als'
+		);
 
-				return handleRequest(
-					{
-						request: adjustedRequest,
-						ctx,
-						assetsFetcher: env.ASSETS,
-					},
-					__CONFIG__,
-					__BUILD_OUTPUT__
-				);
+		const cloudflareGlobalContextAls = (
+			globalThis as unknown as {
+				[cloudflareGlobalContextAlsSymbol]?: AsyncLocalStorage<CloudflareGlobalContext>;
+			}
+		)[cloudflareGlobalContextAlsSymbol];
+
+		if (!cloudflareGlobalContextAls) {
+			return new Response(
+				`Internal Server Error: cannot retrieve the Cloudflare global context AsyncLocalStorage`,
+				{ status: 503 }
+			);
+		}
+
+		return cloudflareGlobalContextAls.run(
+			{
+				cf: request.cf,
+				ctx,
+			},
+			() => {
+
+				return envAsyncLocalStorage.run(
+					{ ...env, NODE_ENV: __NODE_ENV__ },
+					async () => {
+						const url = new URL(request.url);
+						if (url.pathname.startsWith('/_next/image')) {
+							return handleImageResizingRequest(request, __CONFIG__.images);
+						}
+
+						const adjustedRequest = adjustRequestForVercel(request);
+
+						return handleRequest(
+							{
+								request: adjustedRequest,
+								ctx,
+								assetsFetcher: env.ASSETS,
+							},
+							__CONFIG__,
+							__BUILD_OUTPUT__
+						);
+					}
+				)
 			}
 		);
 	},
