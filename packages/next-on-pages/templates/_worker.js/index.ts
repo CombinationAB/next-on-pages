@@ -43,7 +43,6 @@ export default {
 				ctx,
 			},
 			() => {
-
 				return envAsyncLocalStorage.run(
 					{ ...env, NODE_ENV: __NODE_ENV__ },
 					async () => {
@@ -64,7 +63,7 @@ export default {
 							__BUILD_OUTPUT__
 						);
 					}
-				)
+				);
 			}
 		);
 	},
